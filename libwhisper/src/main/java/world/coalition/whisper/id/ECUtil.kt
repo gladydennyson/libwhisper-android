@@ -65,6 +65,11 @@ object ECUtil {
         return ProofOfInteraction(localToken, peerToken)
     }
 
+    // func that computes shared secret
+    // input: This node's private key, and peer's public key -> (a, g^b)
+    // output is symmetric key -> g^ab
+    // fun computeSymmetricKey(privateKey: ByteArray, publicKey: ByteArray) {}
+
     private fun doEllipticCurveDiffieHellman(
         dataPrv: ByteArray,
         dataPub: ByteArray

@@ -45,6 +45,9 @@ class BleGattServer(val core: WhisperCore) {
     private var mGattServer: BluetoothGattServer? = null
     private var mGattServerCallback: BluetoothGattServerCallback? = null
 
+    //we need to sotre public key from alice but multiple requests will overwrite this value
+    // private var key
+
 
     /**
      * For each node that connect, we follow the following steps:
@@ -101,6 +104,9 @@ class BleGattServer(val core: WhisperCore) {
                 }
 
                 private fun response(device: BluetoothDevice): ByteArray {
+                    // check if public key from alice is not null
+                    // if not null compute symmetric key and use it to encrypt location and time
+                    // if null location will be null within payload
                     return getState(device).readRequestResponseBuffer ?: let {
                         val payload = ProtoBuf.dump(
                             AgattPayload.serializer(),
@@ -108,6 +114,7 @@ class BleGattServer(val core: WhisperCore) {
                                 1,
                                 core.whisperConfig.organizationCode,
                                 ECUtil.savePublicKey(core.getPublicKey(context))
+                                ///include location
                             )
                         )
                         getState(device).readRequestResponseBuffer =
@@ -165,6 +172,13 @@ class BleGattServer(val core: WhisperCore) {
                                         )
                                     )
                                 }
+
+                                // read public key from payload and store it
+                                // pubkey = payload.pubkey
+
+                                // read location and time from payload
+                                // if present, then decrypt and calculate proximity within 100 meters
+                                // if not, then do nothing
                             } catch (e: Exception) {
                                 log.debug("device: ${device.address} < write request - parser failed! $e")
                                 return fail(device, requestId)

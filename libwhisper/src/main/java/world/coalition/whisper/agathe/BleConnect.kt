@@ -61,6 +61,9 @@ class BleConnect(val core: WhisperCore) {
          * 3 ..... discover services
          * 4 ..... read whisper characteristic (peer pubkey)
          * 5 ..... write characteristic (current pubkey)
+         *   ..... compute symmetric key
+         *  ...... read whisper characterstic (loaction and time)
+         *  ...... write whisper characterstic (loaction and time)
          * 6 ..... disconnect
          * 7 ..... release the mutex
          */
@@ -124,6 +127,7 @@ class BleConnect(val core: WhisperCore) {
                             1,
                             core.whisperConfig.organizationCode,
                             ECUtil.savePublicKey(core.getPublicKey(context))
+                            //send encrypted location and time
                         )
                     )
 
@@ -140,6 +144,7 @@ class BleConnect(val core: WhisperCore) {
                             if (isActive) {
                                 log.debug("device: ${device.address} > //fixme// timeout fired!")
                                 timeout = null
+                                // instead of calling this, we should call a mehtod that computes symmetric key
                                 step6(gatt)
                             }
                         }
@@ -221,6 +226,7 @@ class BleConnect(val core: WhisperCore) {
                 timeout?.cancel()
                 log.debug("device: ${device.address} < characteristic write pubkey ($status)")
                 if (gatt == null) return step7()
+                // instead of calling this, we should call a mehtod that computes symmetric key
                 step6(gatt)
             }
 
@@ -261,7 +267,10 @@ class BleConnect(val core: WhisperCore) {
                 }
                 // badly formatted payload, do nothing
             }
+
+
         })
+
         mutex.lock()
     }
 }

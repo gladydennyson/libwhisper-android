@@ -144,4 +144,9 @@ class WhisperCore : Whisper {
 
     override suspend fun getRiskExposure(context: Context, tag: String): Int =
         getDb(context).getRiskExposure(tag)
+
+    // create a function that calculates proximity within 100 meters
+    // input: your location and your peer's decrypted location
+    // make sure to check that peer's public key is not within list already
+    // output: you would just store peer's public key within heard set
 }
