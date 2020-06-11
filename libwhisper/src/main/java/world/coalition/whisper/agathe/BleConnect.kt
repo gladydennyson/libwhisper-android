@@ -61,14 +61,14 @@ class BleConnect(val core: WhisperCore) {
          * 3 ..... discover services
          * 4 ..... read whisper characteristic (peer pubkey)
          * 5 ..... write characteristic (current pubkey)
-         *   ..... compute symmetric key
-         *  ...... read whisper characterstic (loaction and time)
-         *  ...... write whisper characterstic (loaction and time)
+         * 5a ..... compute symmetric key
+         * 5b ..... read whisper characterstic (loaction and time)
+         * 5c ..... write whisper characterstic (loaction and time)
          * 6 ..... disconnect
-         * 7 ..... release the mutex
+         * 7 .... release the mutex
          */
         val mutex = Mutex(true)
-
+        var publicKey: ByteArray? = null
         /**
          * STEP 1 - we connect to the device
          */
@@ -95,6 +95,7 @@ class BleConnect(val core: WhisperCore) {
                 }
             }
 
+            //
             private fun step4(gatt: BluetoothGatt) {
                 step = 4
                 var characteristic = gatt.services
@@ -144,7 +145,6 @@ class BleConnect(val core: WhisperCore) {
                             if (isActive) {
                                 log.debug("device: ${device.address} > //fixme// timeout fired!")
                                 timeout = null
-                                // instead of calling this, we should call a mehtod that computes symmetric key
                                 step6(gatt)
                             }
                         }
@@ -154,6 +154,20 @@ class BleConnect(val core: WhisperCore) {
 
                 log.debug("device: ${device.address} > writing failed!")
                 step6(gatt)
+            }
+
+            // compute symmetric key
+            // call next step of protocol
+            private fun step5a(gatt: BluetoothGatt) {
+                log.debug("device: ${device.address} > computing symmetric key")
+
+                val prvKey = core.getKeyPair(context).private
+
+                val privateKey = ECUtil.savePrivateKey(prvKey)
+
+                val symmetricKey = ECUtil.computeSymmetricKey(privateKey, publicKey!!)
+
+                println("####" + symmetricKey)
             }
 
             private fun step6(gatt: BluetoothGatt) {
@@ -226,10 +240,13 @@ class BleConnect(val core: WhisperCore) {
                 timeout?.cancel()
                 log.debug("device: ${device.address} < characteristic write pubkey ($status)")
                 if (gatt == null) return step7()
-                // instead of calling this, we should call a mehtod that computes symmetric key
+                // call step 5a instead of step 6
+                step5a(gatt)
                 step6(gatt)
             }
 
+            // We are changing this method to also extract the encrypted time and location from the
+            // payload
             fun processAgattPayload(characteristic: BluetoothGattCharacteristic) {
                 if (characteristic.uuid != core.whisperConfig.whisperV3CharacteristicUUID) return
                 if (characteristic.value == null) return
@@ -247,6 +264,11 @@ class BleConnect(val core: WhisperCore) {
                         AgattPayload.serializer(),
                         characteristic.value.sliceArray(2..payloadSize + 1)
                     )
+                    //*** save payload.pubkey to field
+                    // figure out how to test this
+                    publicKey = payload?.pubKey
+
+
 
                     log.debug("device: ${device.address} < whisper pubkey ${Base64.encodeToString(payload.pubKey, Base64.NO_WRAP)}")
                     CoroutineScope(Dispatchers.IO).launch {

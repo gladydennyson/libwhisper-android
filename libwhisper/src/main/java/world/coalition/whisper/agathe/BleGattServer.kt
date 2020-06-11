@@ -114,7 +114,7 @@ class BleGattServer(val core: WhisperCore) {
                                 1,
                                 core.whisperConfig.organizationCode,
                                 ECUtil.savePublicKey(core.getPublicKey(context))
-                                ///include location
+                                ///include encounter (location and time)
                             )
                         )
                         getState(device).readRequestResponseBuffer =
@@ -177,7 +177,7 @@ class BleGattServer(val core: WhisperCore) {
                                 // pubkey = payload.pubkey
 
                                 // read location and time from payload
-                                // if present, then decrypt and calculate proximity within 100 meters
+                                // if present, then decrypt and call function to calculate proximity within 100 meters
                                 // if not, then do nothing
                             } catch (e: Exception) {
                                 log.debug("device: ${device.address} < write request - parser failed! $e")

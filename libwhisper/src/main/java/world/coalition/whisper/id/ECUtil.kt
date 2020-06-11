@@ -68,7 +68,10 @@ object ECUtil {
     // func that computes shared secret
     // input: This node's private key, and peer's public key -> (a, g^b)
     // output is symmetric key -> g^ab
-    // fun computeSymmetricKey(privateKey: ByteArray, publicKey: ByteArray) {}
+    fun computeSymmetricKey(privateKey: ByteArray, publicKey: ByteArray): ByteArray {
+        val sharedSecret = doEllipticCurveDiffieHellman(privateKey, publicKey)
+        return sharedSecret
+    }
 
     private fun doEllipticCurveDiffieHellman(
         dataPrv: ByteArray,
