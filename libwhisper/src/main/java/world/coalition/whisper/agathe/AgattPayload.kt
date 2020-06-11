@@ -29,9 +29,9 @@ import kotlinx.serialization.Serializable
 data class AgattPayload(
     val version: Int,
     val organization: Int,
-    val pubKey: ByteArray
+    val pubKey: ByteArray,
     // include encrypted time and location
-    //val encounter: ByteArray
+    val encounter: ByteArray? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

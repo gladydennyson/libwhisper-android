@@ -59,22 +59,25 @@ class BleConnect(val core: WhisperCore) {
          * 1 ..... connect
          * 2 ..... try to increase MTU size (may be refused)
          * 3 ..... discover services
-         * 4 ..... read whisper characteristic (peer pubkey)
-         * 5 ..... write characteristic (current pubkey)
-         * 5a ..... compute symmetric key
-         * 5b ..... read whisper characterstic (loaction and time)
-         * 5c ..... write whisper characterstic (loaction and time)
+         * 4 ..... read whisper characteristic (peer pubkey) bob sends pubkey g^b to alice
+         * 5 ..... write characteristic (current pubkey) alice sends pubkey g^a to bob
+         * 5a ..... compute symmetric key and encrypt  g^ab
+         * 5b ..... read whisper characterstic (loaction and time) bob sends location and time to alice
+         * 5c ..... write whisper characterstic (loaction and time) alice sends location and time to bob
          * 6 ..... disconnect
          * 7 .... release the mutex
          */
         val mutex = Mutex(true)
-        var publicKey: ByteArray? = null
+
         /**
          * STEP 1 - we connect to the device
          */
         log.debug("device: ${device.address} > connecting..")
         device.connectGatt(context, false, object : BluetoothGattCallback() {
             var step = 1
+            private var peerPublicKey: ByteArray? = null
+            private var symmetricKey: ByteArray? = null
+
             private var mtu = 20 // step 2
 
             private fun step2(gatt: BluetoothGatt) {
@@ -95,7 +98,9 @@ class BleConnect(val core: WhisperCore) {
                 }
             }
 
-            //
+
+
+            // Will move on to step 5 only if we have not already symmetric key
             private fun step4(gatt: BluetoothGatt) {
                 step = 4
                 var characteristic = gatt.services
@@ -106,6 +111,7 @@ class BleConnect(val core: WhisperCore) {
                     log.debug("device: ${device.address} > read characteristic ${characteristic.uuid} ...")
                     if (!gatt.readCharacteristic(characteristic)) {
                         log.debug("device: ${device.address} < read failed!")
+                        // should we disconnect or move onto next step
                         step5(gatt)
                     }
                 } else {
@@ -121,7 +127,13 @@ class BleConnect(val core: WhisperCore) {
                     ?.getCharacteristic(core.whisperConfig.whisperV3CharacteristicUUID)
 
                 if (characteristic != null) {
-                    // create pubkey payload
+                    // if symmetric key exists, do the following
+                    if (symmetricKey != null) {
+                        // create cipher object for encrypting/decrypting
+                        // var cipher = javax.crypto.Cipher.getInstance("AES/ECB/NoPadding")
+                        // initialize it
+                        // perform encryption on location || time
+                    }
                     val payload = ProtoBuf.dump(
                         AgattPayload.serializer(),
                         AgattPayload(
@@ -129,6 +141,7 @@ class BleConnect(val core: WhisperCore) {
                             core.whisperConfig.organizationCode,
                             ECUtil.savePublicKey(core.getPublicKey(context))
                             //send encrypted location and time
+                            //ternary expression for checkkng
                         )
                     )
 
@@ -161,14 +174,29 @@ class BleConnect(val core: WhisperCore) {
             private fun step5a(gatt: BluetoothGatt) {
                 log.debug("device: ${device.address} > computing symmetric key")
 
-                val prvKey = core.getKeyPair(context).private
+                val dataFromPair = core.getKeyPair(context).private
+                val privateKey = ECUtil.savePrivateKey(dataFromPair)
 
-                val privateKey = ECUtil.savePrivateKey(prvKey)
+                symmetricKey = ECUtil.computeSymmetricKey(privateKey, peerPublicKey!!)
 
-                val symmetricKey = ECUtil.computeSymmetricKey(privateKey, publicKey!!)
+                //println("####" + symmetricKey)
 
-                println("####" + symmetricKey)
+                step4(gatt)
             }
+
+//            private fun step5b(gatt: BluetoothGatt) {
+//                log.debug("device: ${device.address} > computing symmetric key")
+//
+//                val dataFromPair = core.getKeyPair(context).private
+//                val privateKey = ECUtil.savePrivateKey(dataFromPair)
+//
+//                symmetricKey = ECUtil.computeSymmetricKey(privateKey, peerPublicKey!!)
+//
+//                //println("####" + symmetricKey)
+//
+//                step4(gatt)
+//            }
+
 
             private fun step6(gatt: BluetoothGatt) {
                 step = 6
@@ -231,6 +259,7 @@ class BleConnect(val core: WhisperCore) {
                 step5(gatt)
             }
 
+            // will call function to compute symmetric key if it does not exist
             // callback step 5 (write pubkey)
             override fun onCharacteristicWrite(
                 gatt: BluetoothGatt?,
@@ -241,8 +270,12 @@ class BleConnect(val core: WhisperCore) {
                 log.debug("device: ${device.address} < characteristic write pubkey ($status)")
                 if (gatt == null) return step7()
                 // call step 5a instead of step 6
-                step5a(gatt)
-                step6(gatt)
+                if (symmetricKey == null) {
+                    //compute symmetric key
+                    step5a(gatt)
+                } else {
+                    step6(gatt)
+                }
             }
 
             // We are changing this method to also extract the encrypted time and location from the
@@ -265,9 +298,17 @@ class BleConnect(val core: WhisperCore) {
                         characteristic.value.sliceArray(2..payloadSize + 1)
                     )
                     //*** save payload.pubkey to field
-                    // figure out how to test this
-                    publicKey = payload?.pubKey
-
+                    if (symmetricKey == null) {
+                        peerPublicKey = payload?.pubKey
+                    } else {
+                        // get encounter from payload
+                        // create cipher object for decrypting
+                        var cipher = javax.crypto.Cipher.getInstance("AES/ECB/NoPadding")
+                        // initialize it
+                        // perform decryption
+                        // separate location and time
+                        // perform proximity check
+                    }
 
 
                     log.debug("device: ${device.address} < whisper pubkey ${Base64.encodeToString(payload.pubKey, Base64.NO_WRAP)}")
