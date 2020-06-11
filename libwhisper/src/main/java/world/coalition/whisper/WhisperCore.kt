@@ -19,6 +19,7 @@
 package world.coalition.whisper
 
 import android.content.Context
+import android.location.Location
 import android.util.Base64
 import ch.hsr.geohash.GeoHash
 import kotlinx.coroutines.CoroutineScope
@@ -145,6 +146,12 @@ class WhisperCore : Whisper {
     override suspend fun getRiskExposure(context: Context, tag: String): Int =
         getDb(context).getRiskExposure(tag)
 
+
+//    fun calculateProximity(currentLocation:Location, peerLocation:Location) Boolean {
+//        val dis
+//        return true;
+//
+//    }
     // create a function that calculates proximity within 100 meters
     // input: your location and your peer's decrypted location
     // make sure to check that peer's public key is not within list already

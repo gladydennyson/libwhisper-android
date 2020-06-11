@@ -30,6 +30,8 @@ import world.coalition.whisper.WhisperCore
 import world.coalition.whisper.agathe.android.BluetoothUtil
 import world.coalition.whisper.database.BleConnectEvent
 import world.coalition.whisper.id.ECUtil
+import javax.crypto.Cipher
+import javax.crypto.spec.SecretKeySpec
 
 /**
  * @author Lucien Loiseau on 27/03/20.
@@ -47,7 +49,9 @@ class BleGattServer(val core: WhisperCore) {
 
     //we need to sotre public key from alice but multiple requests will overwrite this value
     // private var key
-
+    private var clientPubkey: ByteArray?= null
+    private var encryptedLoc: ByteArray?= null
+    private var symmetricKey: ByteArray?= null
 
     /**
      * For each node that connect, we follow the following steps:
@@ -86,6 +90,7 @@ class BleGattServer(val core: WhisperCore) {
                         state.remove(device)
                     }
                 }
+                // called on server, alice sends read req
 
                 override fun onCharacteristicReadRequest(
                     device: BluetoothDevice,
@@ -104,6 +109,29 @@ class BleGattServer(val core: WhisperCore) {
                 }
 
                 private fun response(device: BluetoothDevice): ByteArray {
+
+
+                    if (clientPubkey!=null){
+
+                        val prvKey = core.getKeyPair(context).private
+                        val privateKey = ECUtil.savePrivateKey(prvKey)
+                        //val loc = GpsListener(core)
+                        // private key of Bob and public key of Alice
+                        symmetricKey = ECUtil.computeSymmetricKey(privateKey,clientPubkey!!)
+
+                        // Ling's AES-ECB encryption for data
+                        // googled
+                        val keySpec = SecretKeySpec(symmetricKey, "AES") // 4
+                        // check number of bytes of symmetricKey and then do padding
+
+                        val cipher: Cipher = Cipher.getInstance("AES/ECB/PKCS5Padding")
+
+                        cipher.init(Cipher.ENCRYPT_MODE, keySpec)
+                        encryptedLoc = cipher.doFinal(loc)
+                        // check time and loc concatenation
+
+                    }
+
                     // check if public key from alice is not null
                     // if not null compute symmetric key and use it to encrypt location and time
                     // if null location will be null within payload
@@ -113,7 +141,9 @@ class BleGattServer(val core: WhisperCore) {
                             AgattPayload(
                                 1,
                                 core.whisperConfig.organizationCode,
-                                ECUtil.savePublicKey(core.getPublicKey(context))
+                                ECUtil.savePublicKey(core.getPublicKey(context)),
+                                if(encryptedLoc!=null) encryptedLoc else null
+
                                 ///include encounter (location and time)
                             )
                         )
@@ -172,6 +202,17 @@ class BleGattServer(val core: WhisperCore) {
                                         )
                                     )
                                 }
+                                clientPubkey = payload.pubKey
+
+                                if(symmetricKey!=null){
+                                    val loc = payload.encryptedLocation
+                                    val cipher = Cipher.getInstance("AES/CBC/PKCS7Padding")
+                                    val keySpec = SecretKeySpec(symmetricKey, "AES") // 4
+                                    cipher.init(Cipher.DECRYPT_MODE, keySpec)
+                                    val decryptedLoc = cipher.doFinal(loc)
+                                }
+
+
 
                                 // read public key from payload and store it
                                 // pubkey = payload.pubkey
@@ -226,6 +267,9 @@ class BleGattServer(val core: WhisperCore) {
             mGattServerCallback!!
         }
     }
+
+
+
 
     fun checkGATTServer(context: Context) {
         if (!BluetoothUtil.checkBluetoothOn()) return
