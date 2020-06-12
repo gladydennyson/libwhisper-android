@@ -310,11 +310,11 @@ class BleConnect(val core: WhisperCore) {
                         // separate location and time
                         val time = encounter[0].toLong() // most significant byte is time
                         val peerTime = peerEncounter[0].toLong()
-                        val locationAsByteArray = encounter.sliceArray(1 until encounter.size)
-                        val peerLocationAsByteArray = peerEncounter.sliceArray(1 until encounter.size)
+                        val locationAsByteArray = encounter.sliceArray(1 until 3)
+                        val peerLocationAsByteArray = peerEncounter.sliceArray(1 until 3)
                         // perform proximity check if times are "close" (2 minutes)
                         if (abs(time - peerTime) <= 120000) {
-                            // calculateProximity(yourEncounter, encounter)
+                            // calculateProximity(locationAsByteArray, peerLocationAsByteArray)
                         }
                     }
 

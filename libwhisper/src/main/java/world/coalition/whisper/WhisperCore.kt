@@ -52,7 +52,7 @@ class WhisperCore : Whisper {
 
     private var gpsListener: GpsListener? = null
 
-    private var lastPosition: String? = null
+    private var lastPosition: Location? = null
 
     private var coreJob: Job? = null
 
@@ -86,7 +86,7 @@ class WhisperCore : Whisper {
             channel = Channel(capacity = Channel.UNLIMITED)
             gpsListener?.start(context) {
                 lastLocation = GeoHash.withCharacterPrecision(it.latitude, it.longitude, 4).toBase32()
-                lastPosition = lastLocation
+                lastPosition = it
             }
             bleScanner?.start(context, channel!!)
 
@@ -117,11 +117,13 @@ class WhisperCore : Whisper {
     // pads with zeros if less than 128 bits
     fun getEncounter(): ByteArray {
         val date = Date()
-        val charSet = Charsets.UTF_8
-        val byteList = lastPosition!!.toByteArray(charSet).toMutableList()
-        val timeAsLong = date.time
-        val timeAsByte = timeAsLong.toByte()
-        byteList.add(0, timeAsByte)
+        val lat = lastPosition!!.latitude.toByte()
+        val long = lastPosition!!.longitude.toByte()
+        val time = date.time.toByte()
+        val byteList: MutableList<Byte> = mutableListOf()
+        byteList.add(time)
+        byteList.add(lat)
+        byteList.add(long)
         while (byteList.size < 16) byteList.add(0.toByte())
         val byteArray = byteList.toByteArray()
         return byteArray
