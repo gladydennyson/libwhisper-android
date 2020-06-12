@@ -32,6 +32,7 @@ import world.coalition.whisper.database.BleConnectEvent
 import world.coalition.whisper.id.ECUtil
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
+import kotlin.math.abs
 
 /**
  * @author Lucien Loiseau on 27/03/20.
@@ -43,15 +44,17 @@ class BleGattServer(val core: WhisperCore) {
         var writeRequestBuffer: ByteArray? = null
     }
 
+
     private val log: Logger = LoggerFactory.getLogger(Whisper::class.java)
     private var mGattServer: BluetoothGattServer? = null
     private var mGattServerCallback: BluetoothGattServerCallback? = null
 
-    //we need to sotre public key from alice but multiple requests will overwrite this value
-    // private var key
+    //we need to store public key from alice but multiple requests will overwrite this value
+
+
     private var clientPubkey: ByteArray?= null
-    private var encryptedLoc: ByteArray?= null
     private var symmetricKey: ByteArray?= null
+    private var encryptedEncounter: ByteArray?= null
 
     /**
      * For each node that connect, we follow the following steps:
@@ -110,25 +113,25 @@ class BleGattServer(val core: WhisperCore) {
 
                 private fun response(device: BluetoothDevice): ByteArray {
 
-
+                    // to check if its the second read request
                     if (clientPubkey!=null){
 
                         val prvKey = core.getKeyPair(context).private
                         val privateKey = ECUtil.savePrivateKey(prvKey)
-                        //val loc = GpsListener(core)
-                        // private key of Bob and public key of Alice
                         symmetricKey = ECUtil.computeSymmetricKey(privateKey,clientPubkey!!)
 
-                        // Ling's AES-ECB encryption for data
-                        // googled
+                        val encounter = core.getEncounter()
+
+                        // create key used for cipher
                         val keySpec = SecretKeySpec(symmetricKey, "AES") // 4
-                        // check number of bytes of symmetricKey and then do padding
+                        // create cipher object for encrypting
 
-                        val cipher: Cipher = Cipher.getInstance("AES/ECB/PKCS5Padding")
-
+                        val cipher: Cipher = Cipher.getInstance("AES/NoPadding")
+                        // initialize it
+                        // perform encryption on location
                         cipher.init(Cipher.ENCRYPT_MODE, keySpec)
-                        encryptedLoc = cipher.doFinal(loc)
-                        // check time and loc concatenation
+                        // perform encryption
+                        encryptedEncounter  = cipher.doFinal(encounter)
 
                     }
 
@@ -142,9 +145,8 @@ class BleGattServer(val core: WhisperCore) {
                                 1,
                                 core.whisperConfig.organizationCode,
                                 ECUtil.savePublicKey(core.getPublicKey(context)),
-                                if(encryptedLoc!=null) encryptedLoc else null
-
-                                ///include encounter (location and time)
+                                //send encounter (location || time), send bob's encounter
+                                encryptedEncounter
                             )
                         )
                         getState(device).readRequestResponseBuffer =
@@ -181,7 +183,7 @@ class BleGattServer(val core: WhisperCore) {
                     log.info("device ${device.address} < write request - recv full payload")
                     when (cmd) {
                         0x01 -> {
-                            // alice ---pubkey---> bob
+                            // alice ---pubkey---> bob, get alice's public key
                             try {
                                 val payload = ProtoBuf.load(
                                     AgattPayload.serializer(),
@@ -202,24 +204,39 @@ class BleGattServer(val core: WhisperCore) {
                                         )
                                     )
                                 }
-                                clientPubkey = payload.pubKey
 
-                                if(symmetricKey!=null){
-                                    val loc = payload.encryptedLocation
-                                    val cipher = Cipher.getInstance("AES/CBC/PKCS7Padding")
-                                    val keySpec = SecretKeySpec(symmetricKey, "AES") // 4
-                                    cipher.init(Cipher.DECRYPT_MODE, keySpec)
-                                    val decryptedLoc = cipher.doFinal(loc)
+                                if (symmetricKey==null){
+                                    clientPubkey = payload.pubKey
                                 }
 
+                                else {
+                                    // get encounter from payload
+                                    // get alice's encounter
+                                    val encodedEncounter = payload.encounter
+                                    // create key used for cipher
+                                    val keySpec = SecretKeySpec(symmetricKey, "AES")
+                                    // create cipher object for decrypting
+                                    val cipher = Cipher.getInstance("AES/NoPadding")
+                                    // initialize it
+                                    cipher.init(Cipher.DECRYPT_MODE, keySpec)
+                                    // perform decryption
+                                    val peerEncounter = cipher.doFinal(encodedEncounter)
+                                    // get this node's encounter
+                                    val encounter = core.getEncounter()
+                                    // separate location and time
+                                    // perform proximity check
+                                    val time = encounter[0].toLong() // most significant byte is time
+                                    val peerTime = peerEncounter[0].toLong()
+                                    val locationAsByteArray = encounter.sliceArray(1 until encounter.size)
+                                    val peerLocationAsByteArray = peerEncounter.sliceArray(1 until encounter.size)
+                                    // perform proximity check if times are "close" (2 minutes)
+                                    if (abs(time - peerTime) <= 120000) {
+                                         if (core.checkProximity(locationAsByteArray,peerLocationAsByteArray)){
+                                             //store public key of peer
+                                         }
+                                    }
+                                }
 
-
-                                // read public key from payload and store it
-                                // pubkey = payload.pubkey
-
-                                // read location and time from payload
-                                // if present, then decrypt and call function to calculate proximity within 100 meters
-                                // if not, then do nothing
                             } catch (e: Exception) {
                                 log.debug("device: ${device.address} < write request - parser failed! $e")
                                 return fail(device, requestId)

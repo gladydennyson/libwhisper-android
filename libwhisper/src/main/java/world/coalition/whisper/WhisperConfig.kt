@@ -25,6 +25,7 @@ import kotlin.collections.HashMap
  * @author Lucien Loiseau on 27/03/20.
  */
 class WhisperConfig {
+
     /* organization code */
     var organizationCode: Int = 0x01
 
@@ -32,7 +33,7 @@ class WhisperConfig {
     var enablePrivacyBox: Boolean = false
     var locationUpdateDistance: Float = 0.0f
     var locationUpdateIntervalMillis: Long = 120000L // 2 minutes
-
+    var averageRadiusOfEarthKm: Int = 6371
     /* Secure Id Parameters */
     var pubkeyValidityPeriodSec: Int = 1800 // 30 minutes
     var incubationPeriod: Int = 3600 * 24 * 7 * 3  // 3 weeks

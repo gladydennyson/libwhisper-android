@@ -168,13 +168,26 @@ class WhisperCore : Whisper {
         getDb(context).getRiskExposure(tag)
 
 
-//    fun calculateProximity(currentLocation:Location, peerLocation:Location) Boolean {
-//        val dis
-//        return true;
-//
-//    }
-    // create a function that calculates proximity within 100 meters
-    // input: your location and your peer's decrypted location
-    // make sure to check that peer's public key is not within list already
-    // output: you would just store peer's public key within heard set
+    // check current node's and peer's proximity
+    fun checkProximity(currentLocation:ByteArray, peerLocation:ByteArray): Boolean {
+
+
+        val currentLocLat = currentLocation[1].toDouble()
+        val currentLocLng = currentLocation[2].toDouble()
+        val peerLocLat = peerLocation[1].toDouble()
+        val peerLocLng = peerLocation[2].toDouble()
+        val latDistance = Math.toRadians(currentLocLat - peerLocLat);
+        val lngDistance = Math.toRadians(currentLocLng - currentLocLng);
+        val a = (Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + (Math.cos(Math.toRadians(currentLocLat)) * Math.cos(Math.toRadians(peerLocLat))
+                * Math.sin(lngDistance / 2) * Math.sin(lngDistance / 2)))
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        val distance = Math.round(whisperConfig.averageRadiusOfEarthKm * c).toInt();
+
+        if (distance<100){
+            return true
+        }
+        return false
+    }
+
 }

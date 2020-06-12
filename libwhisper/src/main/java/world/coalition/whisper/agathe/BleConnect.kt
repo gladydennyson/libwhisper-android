@@ -314,7 +314,9 @@ class BleConnect(val core: WhisperCore) {
                         val peerLocationAsByteArray = peerEncounter.sliceArray(1 until 3)
                         // perform proximity check if times are "close" (2 minutes)
                         if (abs(time - peerTime) <= 120000) {
-                            // calculateProximity(locationAsByteArray, peerLocationAsByteArray)
+                             if(core.checkProximity(locationAsByteArray, peerLocationAsByteArray)){
+                                     // store public key of peer
+                                 }
                         }
                     }
 
