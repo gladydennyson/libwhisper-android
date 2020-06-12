@@ -38,6 +38,7 @@ import world.coalition.whisper.geo.GpsListener
 import world.coalition.whisper.id.ECUtil
 import java.security.KeyPair
 import java.security.PublicKey
+import java.util.*
 
 
 /**
@@ -50,6 +51,8 @@ class WhisperCore : Whisper {
     private var db: WhisperDatabase? = null
 
     private var gpsListener: GpsListener? = null
+
+    private var lastPosition: String? = null
 
     private var coreJob: Job? = null
 
@@ -83,6 +86,7 @@ class WhisperCore : Whisper {
             channel = Channel(capacity = Channel.UNLIMITED)
             gpsListener?.start(context) {
                 lastLocation = GeoHash.withCharacterPrecision(it.latitude, it.longitude, 4).toBase32()
+                lastPosition = lastLocation
             }
             bleScanner?.start(context, channel!!)
 
@@ -106,6 +110,21 @@ class WhisperCore : Whisper {
         channel?.close()
         coreJob!!.join()
         db?.close()
+    }
+
+    // function that computes and returns encounter
+    // return 128-bit encounter
+    // pads with zeros if less than 128 bits
+    fun getEncounter(): ByteArray {
+        val date = Date()
+        val charSet = Charsets.UTF_8
+        val byteList = lastPosition!!.toByteArray(charSet).toMutableList()
+        val timeAsLong = date.time
+        val timeAsByte = timeAsLong.toByte()
+        byteList.add(0, timeAsByte)
+        while (byteList.size < 16) byteList.add(0.toByte())
+        val byteArray = byteList.toByteArray()
+        return byteArray
     }
 
     override fun isStarted(): Boolean {

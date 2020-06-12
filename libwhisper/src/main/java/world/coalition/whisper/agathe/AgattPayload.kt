@@ -30,7 +30,7 @@ data class AgattPayload(
     val version: Int,
     val organization: Int,
     val pubKey: ByteArray,
-    // include encrypted time and location
+    // include encrypted time || location
     val encounter: ByteArray? = null
 ) {
     override fun equals(other: Any?): Boolean {

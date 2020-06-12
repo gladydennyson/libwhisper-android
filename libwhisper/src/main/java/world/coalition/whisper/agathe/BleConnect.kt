@@ -32,6 +32,9 @@ import world.coalition.whisper.Whisper
 import world.coalition.whisper.WhisperCore
 import world.coalition.whisper.database.BleConnectEvent
 import world.coalition.whisper.id.ECUtil
+import javax.crypto.Cipher
+import javax.crypto.spec.SecretKeySpec
+import kotlin.math.abs
 
 /**
  * @author Lucien Loiseau on 30/03/20.
@@ -98,9 +101,6 @@ class BleConnect(val core: WhisperCore) {
                 }
             }
 
-
-
-            // Will move on to step 5 only if we have not already symmetric key
             private fun step4(gatt: BluetoothGatt) {
                 step = 4
                 var characteristic = gatt.services
@@ -128,20 +128,28 @@ class BleConnect(val core: WhisperCore) {
 
                 if (characteristic != null) {
                     // if symmetric key exists, do the following
+                    var encryptedEncounter: ByteArray? = null
                     if (symmetricKey != null) {
-                        // create cipher object for encrypting/decrypting
-                        // var cipher = javax.crypto.Cipher.getInstance("AES/ECB/NoPadding")
+                        // create encounter (location || time)
+                        val encounter = core.getEncounter()
+                        // create key used for cipher
+                        val keySpec = SecretKeySpec(symmetricKey, "AES")
+                        // create cipher object for encrypting
+                        val cipher = javax.crypto.Cipher.getInstance("AES/NoPadding")
                         // initialize it
-                        // perform encryption on location || time
+                        cipher.init(Cipher.ENCRYPT_MODE, keySpec)
+                        // perform encryption
+                        encryptedEncounter = cipher.doFinal(encounter)
                     }
+
                     val payload = ProtoBuf.dump(
                         AgattPayload.serializer(),
                         AgattPayload(
                             1,
                             core.whisperConfig.organizationCode,
-                            ECUtil.savePublicKey(core.getPublicKey(context))
-                            //send encrypted location and time
-                            //ternary expression for checkkng
+                            ECUtil.savePublicKey(core.getPublicKey(context)),
+                            //send encounter (location || time)
+                            encryptedEncounter
                         )
                     )
 
@@ -169,8 +177,8 @@ class BleConnect(val core: WhisperCore) {
                 step6(gatt)
             }
 
-            // compute symmetric key
-            // call next step of protocol
+            // computes symmetric key
+            // call next step of protocol (bob sends encounter to alice)
             private fun step5a(gatt: BluetoothGatt) {
                 log.debug("device: ${device.address} > computing symmetric key")
 
@@ -179,24 +187,8 @@ class BleConnect(val core: WhisperCore) {
 
                 symmetricKey = ECUtil.computeSymmetricKey(privateKey, peerPublicKey!!)
 
-                //println("####" + symmetricKey)
-
                 step4(gatt)
             }
-
-//            private fun step5b(gatt: BluetoothGatt) {
-//                log.debug("device: ${device.address} > computing symmetric key")
-//
-//                val dataFromPair = core.getKeyPair(context).private
-//                val privateKey = ECUtil.savePrivateKey(dataFromPair)
-//
-//                symmetricKey = ECUtil.computeSymmetricKey(privateKey, peerPublicKey!!)
-//
-//                //println("####" + symmetricKey)
-//
-//                step4(gatt)
-//            }
-
 
             private fun step6(gatt: BluetoothGatt) {
                 step = 6
@@ -259,8 +251,8 @@ class BleConnect(val core: WhisperCore) {
                 step5(gatt)
             }
 
-            // will call function to compute symmetric key if it does not exist
             // callback step 5 (write pubkey)
+            // calls function to compute symmetric key if it does not exist instead of disconnecting
             override fun onCharacteristicWrite(
                 gatt: BluetoothGatt?,
                 characteristic: BluetoothGattCharacteristic?,
@@ -269,7 +261,7 @@ class BleConnect(val core: WhisperCore) {
                 timeout?.cancel()
                 log.debug("device: ${device.address} < characteristic write pubkey ($status)")
                 if (gatt == null) return step7()
-                // call step 5a instead of step 6
+                // call step 5a instead of step 6 if symmetric had not been computed
                 if (symmetricKey == null) {
                     //compute symmetric key
                     step5a(gatt)
@@ -279,7 +271,7 @@ class BleConnect(val core: WhisperCore) {
             }
 
             // We are changing this method to also extract the encrypted time and location from the
-            // payload
+            // payload if present ()
             fun processAgattPayload(characteristic: BluetoothGattCharacteristic) {
                 if (characteristic.uuid != core.whisperConfig.whisperV3CharacteristicUUID) return
                 if (characteristic.value == null) return
@@ -298,16 +290,32 @@ class BleConnect(val core: WhisperCore) {
                         characteristic.value.sliceArray(2..payloadSize + 1)
                     )
                     //*** save payload.pubkey to field
-                    if (symmetricKey == null) {
-                        peerPublicKey = payload?.pubKey
+                    // If encounter is empty, then this is the first time alice reads something from
+                    // bob -> we just get pubkey from payload and save it
+                    if (payload.encounter == null) {
+                        peerPublicKey = payload.pubKey
                     } else {
                         // get encounter from payload
+                        val encodedEncounter = payload.encounter
+                        // create key used for cipher
+                        val keySpec = SecretKeySpec(symmetricKey, "AES")
                         // create cipher object for decrypting
-                        var cipher = javax.crypto.Cipher.getInstance("AES/ECB/NoPadding")
+                        val cipher = Cipher.getInstance("AES/NoPadding")
                         // initialize it
+                        cipher.init(Cipher.DECRYPT_MODE, keySpec)
                         // perform decryption
+                        val peerEncounter = cipher.doFinal(encodedEncounter)
+                        // get this node's encounter
+                        val encounter = core.getEncounter()
                         // separate location and time
-                        // perform proximity check
+                        val time = encounter[0].toLong() // most significant byte is time
+                        val peerTime = peerEncounter[0].toLong()
+                        val locationAsByteArray = encounter.sliceArray(1 until encounter.size)
+                        val peerLocationAsByteArray = peerEncounter.sliceArray(1 until encounter.size)
+                        // perform proximity check if times are "close" (2 minutes)
+                        if (abs(time - peerTime) <= 120000) {
+                            // calculateProximity(yourEncounter, encounter)
+                        }
                     }
 
 
