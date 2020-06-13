@@ -36,9 +36,11 @@ import world.coalition.whisper.exceptions.WhisperAlreadyStartedException
 import world.coalition.whisper.exceptions.WhisperNotStartedException
 import world.coalition.whisper.geo.GpsListener
 import world.coalition.whisper.id.ECUtil
+import java.nio.ByteBuffer
 import java.security.KeyPair
 import java.security.PublicKey
 import java.util.*
+import kotlin.math.*
 
 
 /**
@@ -116,17 +118,34 @@ class WhisperCore : Whisper {
     // return 128-bit encounter
     // pads with zeros if less than 128 bits
     fun getEncounter(): ByteArray {
+        //convert epoch time to array of bytes
         val date = Date()
-        val lat = lastPosition!!.latitude.toByte()
-        val long = lastPosition!!.longitude.toByte()
-        val time = date.time.toByte()
-        val byteList: MutableList<Byte> = mutableListOf()
-        byteList.add(time)
-        byteList.add(lat)
-        byteList.add(long)
-        while (byteList.size < 16) byteList.add(0.toByte())
-        val byteArray = byteList.toByteArray()
-        return byteArray
+        val time = date.time
+        val timeBytes = ByteBuffer.allocate(Long.SIZE_BYTES).putLong(time).array()
+        // convert latitude and longitude to array of bytes
+        val lat = lastPosition!!.latitude
+        val long = lastPosition!!.longitude
+        val latBytes = ByteBuffer.allocate(8).putDouble(lat).array()
+        val longBytes = ByteBuffer.allocate(8).putDouble(long).array()
+        // concatenate into one array bytes to make encounter
+        val encounter: ByteArray = timeBytes.plus(latBytes).plus(longBytes)
+        // pad with zeros if necessary
+        while (encounter.size < 16) encounter.plus(0.toByte())
+
+        return encounter
+    }
+
+    fun convertByteArray(array: ByteArray, type: String): Number {
+        val size = 8; // default, 8 bytes for longs and doubles
+        if (!(type == "Long" || type == "Double")) return -1
+
+        val byteBuffer = ByteBuffer.allocate(size)
+        byteBuffer.put(array)
+        byteBuffer.flip()
+
+        if (type == "Long") return byteBuffer.long
+        return byteBuffer.double
+
     }
 
     override fun isStarted(): Boolean {
@@ -169,20 +188,28 @@ class WhisperCore : Whisper {
 
 
     // check current node's and peer's proximity
-    fun checkProximity(currentLocation:ByteArray, peerLocation:ByteArray): Boolean {
+    fun checkProximity(encounter: ByteArray, peerEncounter: ByteArray): Boolean {
+        // separate location and time
+        // alice
+        val time = convertByteArray(encounter.sliceArray(0 until 8), "Long").toLong()
+        val currentLocLat = convertByteArray(encounter.sliceArray(8 until 16), "Double").toDouble()
+        val currentLocLng = convertByteArray(encounter.sliceArray(16 until 24), "Double").toDouble()
+        // bob
+        val peerTime = convertByteArray(peerEncounter.sliceArray(0 until 8), "Long").toLong()
+        val peerLocLat = convertByteArray(peerEncounter.sliceArray(8 until 16), "Double").toDouble()
+        val peerLocLng = convertByteArray(peerEncounter.sliceArray(16 until 24), "Double").toDouble()
 
+        // check if times are "close" (2 minutes)
+        if (abs(time - peerTime) <= 120000) return false
 
-        val currentLocLat = currentLocation[1].toDouble()
-        val currentLocLng = currentLocation[2].toDouble()
-        val peerLocLat = peerLocation[1].toDouble()
-        val peerLocLng = peerLocation[2].toDouble()
-        val latDistance = Math.toRadians(currentLocLat - peerLocLat);
-        val lngDistance = Math.toRadians(currentLocLng - currentLocLng);
-        val a = (Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-                + (Math.cos(Math.toRadians(currentLocLat)) * Math.cos(Math.toRadians(peerLocLat))
-                * Math.sin(lngDistance / 2) * Math.sin(lngDistance / 2)))
-        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-        val distance = Math.round(whisperConfig.averageRadiusOfEarthKm * c).toInt();
+        // check proximity
+        val latDistance = Math.toRadians(currentLocLat - peerLocLat)
+        val lngDistance = Math.toRadians(currentLocLng - peerLocLng)
+        val a = (sin(latDistance / 2) * sin(latDistance / 2)
+                + (cos(Math.toRadians(currentLocLat)) * cos(Math.toRadians(peerLocLat))
+                * sin(lngDistance / 2) * sin(lngDistance / 2)))
+        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        val distance = (whisperConfig.averageRadiusOfEarthKm * c).roundToInt()
 
         if (distance<100){
             return true

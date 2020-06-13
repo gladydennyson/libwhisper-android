@@ -207,12 +207,9 @@ class BleGattServer(val core: WhisperCore) {
 
                                 if (symmetricKey==null){
                                     clientPubkey = payload.pubKey
-                                }
-
-                                else {
+                                } else {
                                     // get encounter from payload
-                                    // get alice's encounter
-                                    val encodedEncounter = payload.encounter
+                                    val encodedEncounter = payload.encounter // alice
                                     // create key used for cipher
                                     val keySpec = SecretKeySpec(symmetricKey, "AES")
                                     // create cipher object for decrypting
@@ -222,18 +219,10 @@ class BleGattServer(val core: WhisperCore) {
                                     // perform decryption
                                     val peerEncounter = cipher.doFinal(encodedEncounter)
                                     // get this node's encounter
-                                    val encounter = core.getEncounter()
-                                    // separate location and time
-                                    // perform proximity check
-                                    val time = encounter[0].toLong() // most significant byte is time
-                                    val peerTime = peerEncounter[0].toLong()
-                                    val locationAsByteArray = encounter.sliceArray(1 until encounter.size)
-                                    val peerLocationAsByteArray = peerEncounter.sliceArray(1 until encounter.size)
-                                    // perform proximity check if times are "close" (2 minutes)
-                                    if (abs(time - peerTime) <= 120000) {
-                                         if (core.checkProximity(locationAsByteArray,peerLocationAsByteArray)){
-                                             //store public key of peer
-                                         }
+                                    val encounter = core.getEncounter() // bob
+
+                                    if(core.checkProximity(encounter, peerEncounter)){
+                                        // store public key of peer
                                     }
                                 }
 
