@@ -120,11 +120,14 @@ class WhisperCore : Whisper {
     fun getEncounter(): ByteArray {
         //convert epoch time to array of bytes
         val date = Date()
+        // gets the current epoch time in milliseconds
         val time = date.time
+        // creates byte array from time
         val timeBytes = ByteBuffer.allocate(Long.SIZE_BYTES).putLong(time).array()
-        // convert latitude and longitude to array of bytes
+        // gets the lat and long from the current location
         val lat = lastPosition!!.latitude
         val long = lastPosition!!.longitude
+        // convert latitude and longitude to array of bytes
         val latBytes = ByteBuffer.allocate(8).putDouble(lat).array()
         val longBytes = ByteBuffer.allocate(8).putDouble(long).array()
         // concatenate into one array bytes to make encounter
@@ -136,7 +139,7 @@ class WhisperCore : Whisper {
     }
 
     fun convertByteArray(array: ByteArray, type: String): Number {
-        val size = 8; // default, 8 bytes for longs and doubles
+        val size = 8; // default, 8 bytes for longs and doubles, subject to change
         if (!(type == "Long" || type == "Double")) return -1
 
         val byteBuffer = ByteBuffer.allocate(size)
