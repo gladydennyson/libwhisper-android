@@ -128,7 +128,7 @@ class BleConnect(val core: WhisperCore) {
 
                 if (characteristic != null) {
                     // if symmetric key exists, do the following
-                    var encryptedEncounter: ByteArray? = null
+                    var encryptedEncounter: ByteArray = ByteArray(0)
                     if (symmetricKey != null) {
                         // create encounter (location || time)
                         val encounter = core.getEncounter()
@@ -292,7 +292,7 @@ class BleConnect(val core: WhisperCore) {
                     //*** save payload.pubkey to field
                     // If encounter is empty, then this is the first time alice reads something from
                     // bob -> we just get pubkey from payload and save it
-                    if (payload.encounter == null) {
+                    if (payload.encounter.isEmpty()) {
                         peerPublicKey = payload.pubKey
                     } else {
                         // get encounter from payload

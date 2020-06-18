@@ -54,7 +54,7 @@ class BleGattServer(val core: WhisperCore) {
 
     private var clientPubkey: ByteArray?= null
     private var symmetricKey: ByteArray?= null
-    private var encryptedEncounter: ByteArray?= null
+    private var encryptedEncounter: ByteArray = ByteArray(0)
 
     /**
      * For each node that connect, we follow the following steps:
