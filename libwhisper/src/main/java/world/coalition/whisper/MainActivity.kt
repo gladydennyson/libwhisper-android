@@ -43,7 +43,8 @@ class MainActivity : AppCompatActivity() {
             this@MainActivity,
             arrayOf<String>(
                 Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+                Manifest.permission.BLUETOOTH
             )
             ,
             1);

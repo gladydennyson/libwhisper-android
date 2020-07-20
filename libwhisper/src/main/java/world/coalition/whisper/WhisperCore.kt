@@ -27,6 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import world.coalition.whisper.agathe.BleScanner
@@ -37,8 +38,8 @@ import world.coalition.whisper.exceptions.WhisperNotStartedException
 import world.coalition.whisper.geo.GpsListener
 import world.coalition.whisper.id.ECUtil
 import java.nio.ByteBuffer
-import java.security.KeyPair
-import java.security.PublicKey
+import java.security.*
+import java.security.spec.ECGenParameterSpec
 import java.util.*
 import kotlin.math.*
 
@@ -90,6 +91,15 @@ class WhisperCore : Whisper {
                 lastLocation = GeoHash.withCharacterPrecision(it.latitude, it.longitude, 4).toBase32()
                 lastPosition = it
             }
+
+            Security.removeProvider (BouncyCastleProvider.PROVIDER_NAME);
+            Security.insertProviderAt(BouncyCastleProvider(), 1);
+            //Security.addProvider(BouncyCastleProvider())
+            val kpgen = KeyPairGenerator.getInstance("ECDH", "BC")
+            val arr = mutableListOf<kotlin.Byte>(0, 1, 2, 3, 12, 13 ,14).toByteArray()
+            kpgen.initialize(ECGenParameterSpec("curve25519"), SecureRandom(arr))
+            val pair = kpgen.generateKeyPair()
+
             bleScanner?.start(context, channel!!)
 
             for (interaction in channel!!) {

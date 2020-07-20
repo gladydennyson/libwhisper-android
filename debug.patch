@@ -1,0 +1,32 @@
+diff --git a/libwhisper/build.gradle b/libwhisper/build.gradle
+index 05811f2..5e66d3f 100644
+--- a/libwhisper/build.gradle
++++ b/libwhisper/build.gradle
+@@ -59,6 +59,7 @@ android {
+ dependencies {
+     implementation fileTree(dir: 'libs', include: ['*.jar'])
+     api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
++    debugImplementation 'com.github.tony19:logback-android:2.0.0'
+ 
+     // crypto
+     api group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.65'
+diff --git a/libwhisper/src/main/assets/logback.xml b/libwhisper/src/main/assets/logback.xml
+new file mode 100644
+index 0000000..e07b1ba
+--- /dev/null
++++ b/libwhisper/src/main/assets/logback.xml
+@@ -0,0 +1,13 @@
++<configuration>
++    <appender name="logcat" class="ch.qos.logback.classic.android.LogcatAppender">
++        <tagEncoder>
++            <pattern>%logger{12}</pattern>
++        </tagEncoder>
++        <encoder>
++            <pattern>%msg</pattern>
++        </encoder>
++    </appender>
++    <root level="DEBUG">
++        <appender-ref ref="logcat" />
++    </root>
++</configuration>
+\ No newline at end of file

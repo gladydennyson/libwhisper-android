@@ -39,10 +39,16 @@ object ECUtil {
 
     private var kpgen: KeyPairGenerator
 
+
     init {
+
         Security.removeProvider (BouncyCastleProvider.PROVIDER_NAME);
         Security.insertProviderAt(BouncyCastleProvider(), 1);
         //Security.addProvider(BouncyCastleProvider())
+        // key generation from here
+        //val masterSeed : SecureRandom()
+
+
         kpgen = KeyPairGenerator.getInstance("ECDH", "BC")
         kpgen.initialize(ECGenParameterSpec("curve25519"), SecureRandom())
     }

@@ -59,6 +59,7 @@ android {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
+    debugImplementation 'com.github.tony19:logback-android:2.0.0'
 
     // crypto
     api group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.65'
@@ -74,6 +75,7 @@ dependencies {
     kapt "androidx.room:room-compiler:$room_version"
     // debug-only can browse the DB in desktop browser
     debugImplementation 'com.amitshekhar.android:debug-db:1.0.6'
+    debugImplementation 'com.github.tony19:logback-android:2.0.0'
 
     // kotlin
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"

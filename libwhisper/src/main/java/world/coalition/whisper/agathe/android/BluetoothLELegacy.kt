@@ -17,7 +17,6 @@
  */
 
 package world.coalition.whisper.agathe.android
-
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.Context
