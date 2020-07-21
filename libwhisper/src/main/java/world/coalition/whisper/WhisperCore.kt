@@ -27,6 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import org.bouncycastle.crypto.prng.FixedSecureRandom
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -97,9 +98,11 @@ class WhisperCore : Whisper {
             //Security.addProvider(BouncyCastleProvider())
             val kpgen = KeyPairGenerator.getInstance("ECDH", "BC")
             val arr = mutableListOf<kotlin.Byte>(0, 1, 2, 3, 12, 13 ,14).toByteArray()
-            kpgen.initialize(ECGenParameterSpec("curve25519"), SecureRandom(arr))
+            val sRandom = SecureRandom.getInstance("NativePRNG", BouncyCastleProvider())
+            sRandom.setSeed(arr)
+            kpgen.initialize(ECGenParameterSpec("curve25519"), sRandom)
             val pair = kpgen.generateKeyPair()
-
+            //val providers = Security.getProviders()
             bleScanner?.start(context, channel!!)
 
             for (interaction in channel!!) {
