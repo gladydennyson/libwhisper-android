@@ -95,10 +95,9 @@ class WhisperCore : Whisper {
 
             Security.removeProvider (BouncyCastleProvider.PROVIDER_NAME);
             Security.insertProviderAt(BouncyCastleProvider(), 1);
-            //Security.addProvider(BouncyCastleProvider())
             val kpgen = KeyPairGenerator.getInstance("ECDH", "BC")
-            val arr = mutableListOf<kotlin.Byte>(0, 1, 2, 3, 12, 13 ,14).toByteArray()
-            val sRandom = SecureRandom.getInstance("NativePRNG", BouncyCastleProvider())
+            val arr = mutableListOf<kotlin.Byte>(0, 1, 2, 3, 12, 13 , 14).toByteArray()
+            val sRandom = SecureRandom.getInstance("SHA1PRNG")
             sRandom.setSeed(arr)
             kpgen.initialize(ECGenParameterSpec("curve25519"), sRandom)
             val pair = kpgen.generateKeyPair()
