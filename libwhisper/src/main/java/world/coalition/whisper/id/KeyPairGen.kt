@@ -64,7 +64,7 @@ object KeyPairGen {
         InvalidAlgorithmParameterException::class,
         InvalidKeySpecException::class
     )
-    fun genKeyPair(seed: ByteArray) : Pair<ByteArray, ByteArray> {
+        fun genKeyPair(seed: ByteArray) : Pair<ByteArray, ByteArray> {
         Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
         Security.insertProviderAt(BouncyCastleProvider(), 1)
         //        KeyPairGenerator kpgen = KeyPairGenerator.getInstance("EC", "BC");
@@ -85,8 +85,10 @@ object KeyPairGen {
             ECNamedCurveTable.getParameterSpec("secp224r1")
         val seckey = GenSecKey(seed, ecspec)
         val prvKey = seckey.toByteArray()
-        val pubkey = GenPubKey(seckey, ecspec) as ECPublicKey
-        val eckey: ECPublicKey = pubkey as ECPublicKey
-        return Pair(ByteArray(0), ByteArray(0))
+        val publickey = GenPubKey(seckey, ecspec)
+        val pubkeyBouncyCastle =  publickey as ECPublicKey
+        val bigintval = pubkeyBouncyCastle.parameters.n
+        val pubKey = bigintval.toByteArray()
+        return Pair(prvKey, pubKey)
     }
 }
