@@ -20,7 +20,9 @@ package world.coalition.whisper
 
 import android.content.Context
 import android.location.Location
+import android.os.Build
 import android.util.Base64
+import androidx.annotation.RequiresApi
 import ch.hsr.geohash.GeoHash
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +39,7 @@ import world.coalition.whisper.exceptions.WhisperAlreadyStartedException
 import world.coalition.whisper.exceptions.WhisperNotStartedException
 import world.coalition.whisper.geo.GpsListener
 import world.coalition.whisper.id.ECUtil
+import world.coalition.whisper.id.KeyPairGen
 import java.nio.ByteBuffer
 import java.security.*
 import java.security.spec.ECGenParameterSpec
@@ -76,6 +79,7 @@ class WhisperCore : Whisper {
     @Throws(WhisperAlreadyStartedException::class)
     override fun start(context: Context) = start(context, WhisperConfig())
 
+    @RequiresApi(Build.VERSION_CODES.N)
     @Throws(WhisperAlreadyStartedException::class)
     override fun start(context: Context, config: WhisperConfig): Whisper {
         if (coreJob != null) throw WhisperAlreadyStartedException()
@@ -91,7 +95,11 @@ class WhisperCore : Whisper {
                 lastLocation = GeoHash.withCharacterPrecision(it.latitude, it.longitude, 4).toBase32()
                 lastPosition = it
             }
-            
+            val arr = mutableListOf<kotlin.Byte>(0, 1, 2, 3, 11,12, 13 , 14).toByteArray()
+            val keyP = KeyPairGen.genKeyPair(arr)
+            val firstVal = keyP.first
+            val secondVal = keyP.second
+
             bleScanner?.start(context, channel!!)
 
             for (interaction in channel!!) {
